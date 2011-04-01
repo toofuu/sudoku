@@ -24,13 +24,17 @@
   (assert (= (set (peers[\C \2])) (set '([\A \2] [\B \2] [\D \2] [\E \2] [\F \2] [\G \2] [\H \2] [\I \2] [\C \1] [\C \3] [\C \4] [\C \5] [\C \6] [\C \7] [\C \8] [\C \9] [\A \1] [\A \3] [\B \1] [\B \3])))))
 
 (defn reduce-while
-  "Like reduce, but reduction stops as soon as it becomes falsy."
-  [f start-val coll]
-  (loop [val start-val others coll]
-    (if-let [one (first others)]
-      (when-let [new-val (f val one)]
-	(recur new-val (next others)))
-      val)))
+  "Like reduce, but reduction stops as soon as (pred reduction) becomes falsy, then returns last reduction."
+  ([pred f start-val coll]
+     (loop [val start-val others coll]
+       (if-let [one (first others)]
+	 (let [new-val (f val one)]
+	   (if (pred new-val)
+	     (recur new-val (next others))
+	     new-val))
+	 val)))
+  ([f start-val coll]
+     (reduce-while (complement nil?) f start-val coll)))
 
 (declare eliminate)
 (defn assign
@@ -44,22 +48,23 @@
   "Eliminate d from grid and propagate.
     Return grid, except return nil if a contradiction is detected."
   [grid s d]
-  (if ((grid s) d)
-    (let [new-grid (update-in grid [s] disj d)
-	  remaining-digits (new-grid s)]
-      (when (seq remaining-digits)
-	(let [peer-propagated (if (= (count remaining-digits) 1)
-				(reduce-while #(eliminate %1 %2 (first remaining-digits)) new-grid (peers s))
-				new-grid)]
-	  (when peer-propagated
-	    (reduce-while (fn [g u]
-			    (let [squares-with-d (filter #((g %) d) u)]
-			      (when (seq squares-with-d)
-				(if (= (count squares-with-d) 1)
-				  (assign g (first squares-with-d) d)
-				  g))))
-			  peer-propagated (units s))))))
-    grid))
+  (let [digits (grid s)]
+    (if (digits d)
+      (let [remaining-digits (disj digits d)
+	    new-grid (assoc grid s remaining-digits)]
+	(when (seq remaining-digits)
+	  (let [peer-propagated (if (= (count remaining-digits) 1)
+				  (reduce-while #(eliminate %1 %2 (first remaining-digits)) new-grid (peers s))
+				  new-grid)]
+	    (when peer-propagated
+	      (reduce-while (fn [g u]
+			      (let [squares-with-d (take 2 (filter #((g %) d) u))] ;tweak: no need to fetch all squares with d, since we only want to know if theres more than one.
+				(when (seq squares-with-d)
+				  (if (= (count squares-with-d) 1)
+				    (assign g (first squares-with-d) d)
+				    g))))
+			    peer-propagated (units s))))))
+      grid)))
 
 (defn grid-values
   "Convert textual representation of grid into a map of squares to digits with '0' or '.' for empties."
@@ -90,16 +95,17 @@
   "Using depth-first search and propagation, try all possible values."
   [grid]
   (when grid
-    (let [[most-constrained _ solved] (->> squares
-					   (map #(let [dcount (count (grid %))] (vector % dcount (= dcount 1))))
-					   (reduce (fn [[m mcount solved-so-far] [s _ _]]
+    (let [[most-constrained _ solved-so-far] (->> squares
+						  (reduce-while
+						   (fn [[m mcount solved-so-far]] (> mcount 2)) ;tweak: we can abort on searching when we have the minimally constrained square.
+						   (fn [[m mcount solved-so-far] s]
 						     (let [dc (count (grid s))
 							   ssf (and solved-so-far (= dc 1))]
 						       (if (< 1 dc mcount)
 							 [s dc ssf]
 							 [m mcount ssf])))
 						   [nil 10 true]))]
-      (if solved
+      (if (and solved-so-far (every? #(= 1 (count %)) (vals grid)))
 	grid
 	(some search (map #(assign grid most-constrained %) (grid most-constrained)))))))
 
@@ -110,12 +116,12 @@
     When time-threshold is a number of seconds, display puzzles that take longer."
   [grid-strs name time-threshold]
   (let [time-solve (fn [grid-str]
-		     (let [g (parse-grid grid-str)
-			   s (System/nanoTime)
+		     (let [s (System/nanoTime)
+			   g (parse-grid grid-str)
 			   solution (search g)
 			   t (/ (- (System/nanoTime) s) 1e9)]
 		       (when (and time-threshold (> t time-threshold))
-			 (display (grid-values grid-str))
+			 (display g)
 			 (when solution (display solution))
 			 (println t " seconds."))
 		       [t solution]))
