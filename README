@@ -1,4 +1,5 @@
 This is a exercise project which solves sudokus. 
-It stays quite near to the algorithm in the great post of Peter Norvig (http://norvig.com/sudoku.html), but also tries to be idiomatic clojure.
+It stays quite near to the algorithm in the inspiring post of Peter Norvig (http://norvig.com/sudoku.html), with a few tweaks, but also tries to be idiomatic clojure.
+
 I got aware of another attempt has been made in clojure (http://jkkramer.wordpress.com/2011/03/29/clojure-python-side-by-side/), which looks quite different because I didn't look at that code until I was finished.
 There's one exception though: I actually copied the display-function because I was focussing on the algorithm itself and was lazy on the print output :)
