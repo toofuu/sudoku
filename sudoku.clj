@@ -146,3 +146,9 @@
     (if new-puzzle
       (apply str (map #(let [ds (new-puzzle %)] (if (= (count ds) 1) (str (first ds)) ".")) squares))
       (random-puzzle n))))
+
+(defn examples []
+  (solve-all (from-file "top95.txt" nil) "hard" 0.15)
+  (solve-all (from-file "hardest.txt" nil) "hardest" 0.1)
+  (solve-all (rest (from-file "easy.txt" "Grid ..")) "easy" 0.1)
+  (solve-all (repeatedly 99 (partial random-puzzle nil)) "random" 1))
