@@ -80,7 +80,7 @@
   (reduce-while (fn [grid [s d]] (if (digits d) (assign grid s d) grid)) undetermined-grid (grid-values grid-str)))
 
 (defn display
-  "Display the grid in 2D. I'm not happy with this implementation, feel free to suggest improvements."
+  "Display the grid in 2D"
   [grid]
   (let [width (inc (reduce #(max %1 (count %2)) 0 (vals grid)))
 	line (join "+" (take 3 (repeat (apply str (take (* width 3) (repeat "-"))))))]
